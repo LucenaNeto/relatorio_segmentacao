@@ -44,3 +44,64 @@ def compute_metrics(df: pd.DataFrame) -> dict[str, float]:
         "pct_qty_other":     o_pq,
         "pct_rev_other":     o_pr,
     }
+
+
+def compute_metrics(df: pd.DataFrame) -> dict:
+    """
+    Calcula indicadores para um DataFrame filtrado por segmentação:
+      - total_orders: quantidade total de pedidos
+      - total_revenue: soma do ValorLiquido
+      - métricas para boleto e cartão
+      - métricas dinâmicas para quaisquer outros métodos de pagamento em PlanoPagamento
+    Retorna um dict com:
+      {
+        'total_orders': int,
+        'total_revenue': float,
+        'methods': {
+            'boleto': {'qty':..., 'rev':..., 'pct_qty':..., 'pct_rev':...},
+            'cartão': {...},
+            'PIX': {...},
+            ...
+        }
+      }
+    """
+    total_orders  = len(df)
+    total_revenue = df['ValorLiquido'].sum()
+
+    # Identifica categorias únicas em PlanoPagamento (lowercase)
+    df['pm_lower'] = df['PlanoPagamento'].str.lower()
+    unique_methods = df['pm_lower'].unique().tolist()
+
+    # Vamos agrupar os métodos de boleto e cartão sob esses nomes exatos
+    standard = {
+        'boleto': lambda s: 'boleto' in s,
+        'cartão': lambda s: 'cartão' in s
+    }
+
+    metrics = {'total_orders': total_orders, 'total_revenue': total_revenue, 'methods': {}}
+
+    # Função auxiliar de cálculo
+    def calc(mask):
+        qty = int(mask.sum())
+        rev = float(df.loc[mask, 'ValorLiquido'].sum())
+        pct_qty = qty / total_orders if total_orders else 0
+        pct_rev = rev / total_revenue if total_revenue else 0
+        return {'qty': qty, 'rev': rev, 'pct_qty': pct_qty, 'pct_rev': pct_rev}
+
+    # Primeiro, gera para boleto e cartão
+    for name, fn in standard.items():
+        mask = df['pm_lower'].apply(fn)
+        metrics['methods'][name] = calc(mask)
+
+    # Depois, para os demais métodos
+    for method in unique_methods:
+        if any(fn(method) for fn in standard.values()):
+            continue
+        mask = df['pm_lower'] == method
+        # usa nome original capitalizado
+        metrics['methods'][method] = calc(mask)
+
+    # Limpa coluna auxiliar
+    df.drop(columns=['pm_lower'], inplace=True)
+
+    return metrics

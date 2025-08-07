@@ -56,8 +56,14 @@ def process_sheet(filepath: str, sheet: str):
         OUTPUT_DIR,
         f"relatorio_{sheet}_{base_name}.pdf"
     )
-    # 7) Gera PDF apenas para esta segmentação
-    build_pdf_report({sheet: metrics}, GRAPH_DIR, out_pdf, report_date)
+    # 7) Gera PDF apenas para esta segmentação, adicionando a logo
+    build_pdf_report(
+        {sheet: metrics},
+        GRAPH_DIR,
+        out_pdf,
+        report_date,
+        logo_path=r"C:\Users\NOTE_TI_CARLOS\Projetos_py\relatorio_seguimentacao\assets\logo.png"
+    )
     print(f"→ PDF gerado para {sheet}: {out_pdf}")
 
 
